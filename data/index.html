@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>ESP32 BLE Keyboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-bottom: 20px;
+        }
+        .keyboard-key {
+            min-width: 40px;
+            min-height: 45px;
+            margin: 2px;
+            font-size: 12px;
+            font-weight: bold;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media (max-width: 576px) {
+            .keyboard-key {
+                min-width: 30px;
+                min-height: 40px;
+                font-size: 11px;
+                margin: 1px;
+                padding: 4px 6px;
+            }
+        }
+        @media (min-width: 768px) {
+            .keyboard-key {
+                min-width: 50px;
+                min-height: 50px;
+                font-size: 14px;
+                margin: 3px;
+            }
+        }
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+        @media (max-width: 576px) {
+            .keyboard-row {
+                margin-bottom: 2px;
+            }
+        }
+        .keyboard-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .status-connected {
+            background-color: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: none;
+        }
+        .slot-btn {
+            font-weight: 500;
+        }
+        .slot-btn.active {
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 1.75rem;
+        }
+        @media (max-width: 576px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid px-3 mt-3">
+        <h1 class="text-center mb-3">ESP32 BLE Keyboard</h1>
+        
+        <div id="statusPanel" class="card mb-3">
+            <div class="card-body py-2">
+                <div class="status-row mb-2">
+                    <span id="bleStatus" class="status-indicator status-disconnected"></span>
+                    <span id="statusText" class="fw-bold">Disconnected</span>
+                </div>
+                <div class="text-muted small">Slot: <span id="currentSlot" class="fw-bold">1</span></div>
+            </div>
+        </div>
+        
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <h6 class="card-title mb-2">Slot Selection</h6>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-primary slot-btn" data-slot="1">1</button>
+                    <button type="button" class="btn btn-outline-primary slot-btn" data-slot="2">2</button>
+                    <button type="button" class="btn btn-outline-primary slot-btn" data-slot="3">3</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body py-2">
+                <h6 class="card-title mb-2">Virtual Keyboard</h6>
+                <div class="keyboard-container">
+                    <div id="keyboard"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/script.js"></script>
+</body>
+</html>
