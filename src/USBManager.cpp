@@ -1,9 +1,14 @@
 #include "USBManager.h"
-#include <hid_usage_keyboard.h>
 
-// Static member initialization
+// Static member initialization (always needed)
 KeyboardReportCallback USBManager::_keyboardCb = nullptr;
 bool USBManager::_initialized = false;
+
+// Only compile USB Host implementation when in USB Host mode
+#if ARDUINO_USB_MODE == 0
+
+#include <hid_usage_keyboard.h>
+
 TaskHandle_t USBManager::_usbLibTaskHandle = nullptr;
 TaskHandle_t USBManager::_hidHostTaskHandle = nullptr;
 volatile bool USBManager::_tasksShouldExit = false;
@@ -303,3 +308,17 @@ void USBManager::hid_host_interface_callback(
         break;
     }
 }
+
+#else
+// Stub implementations when USB Host mode not available
+
+void USBManager::begin() {
+    Serial.println("[USB] ERROR: USB Host mode not enabled in build!");
+    Serial.println("[USB] This firmware was compiled with ARDUINO_USB_MODE=1 (Device mode)");
+}
+
+void USBManager::end() {
+    _initialized = false;
+}
+
+#endif

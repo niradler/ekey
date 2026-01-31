@@ -9,8 +9,8 @@ void setup() {
 
   Serial.println();
   Serial.println("╔════════════════════════════════════════════════╗");
-  Serial.println("║  ESP32-S3 USB to BLE Keyboard Bridge           ║");
-  Serial.println("║  Supports keyboard + multi-device              ║");
+  Serial.println("║  EKey - Universal Keyboard Bridge              ║");
+  Serial.println("║  USB/Web <-> BLE/USB                           ║");
   Serial.println("╚════════════════════════════════════════════════╝");
   Serial.println();
 
@@ -23,11 +23,7 @@ void setup() {
 
   Bridge::begin();
 
-  Serial.println();
-  Serial.println("╔════════════════════════════════════════════════╗");
-  Serial.println("║  READY - Connect USB devices via hub           ║");
-  Serial.println("╚════════════════════════════════════════════════╝");
-  Serial.println();
+  Serial.println("[EKey] Ready");
 }
 
 void loop() {

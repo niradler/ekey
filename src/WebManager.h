@@ -6,6 +6,7 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include "BLEManager.h"
+#include "USBHIDManager.h"
 #include "Config.h"
 
 // Forward declaration to avoid circular include
@@ -35,12 +36,16 @@ public:
      */
     static bool isInitialized() { return _initialized; }
 
+    // Output manager setters - mutually exclusive
     static BLEManager *getBLEManager();
     static void setBLEManager(BLEManager *bleManager);
+    static USBHIDManager *getUSBHIDManager();
+    static void setUSBHIDManager(USBHIDManager *usbHidManager);
 
 private:
     static AsyncWebServer _server;
     static BLEManager *_bleManager;
+    static USBHIDManager *_usbHidManager;
     static bool _initialized;
 
     static void handleRoot(AsyncWebServerRequest *request);

@@ -10,6 +10,7 @@
 #include "BLEManager.h"
 #include "Config.h"
 #include "USBManager.h"
+#include "USBHIDManager.h"
 #include "ModeManager.h"
 #include <Arduino.h>
 #include <Preferences.h>
@@ -18,8 +19,9 @@ class Bridge {
 public:
   /**
    * @brief Initializes the application based on current mode.
-   * OTG Mode: Initializes USB + BLE
+   * OTG Mode: Initializes USB Host + BLE
    * Web Mode: Initializes WiFi + WebServer + BLE
+   * USB Mode: Initializes WiFi + WebServer + USB HID Device
    */
   static void begin();
 
@@ -42,7 +44,7 @@ public:
   static void switchToSlot(uint8_t slot);
 
   /**
-   * @brief Switch between OTG and Web modes.
+   * @brief Switch between modes (OTG -> WEB -> USB -> OTG).
    * Performs clean shutdown, toggles mode, and restarts ESP32.
    */
   static void switchMode();
@@ -59,16 +61,26 @@ public:
    */
   static BLEManager* getBLEManager();
 
+  /**
+   * @brief Gets a pointer to the USB HID manager for external access.
+   * @return Pointer to the USBHIDManager instance.
+   */
+  static USBHIDManager* getUSBHIDManager();
+
 private:
   static uint8_t _currentSlot;
   static BLEManager _bleManager;
+  static USBHIDManager _usbHidManager;
   static Preferences _preferences;
 
-  /** @brief Initialize OTG mode (USB + BLE). */
+  /** @brief Initialize OTG mode (USB Host + BLE). */
   static void initOTGMode();
 
   /** @brief Initialize Web mode (WiFi + WebServer + BLE). */
   static void initWebMode();
+
+  /** @brief Initialize USB mode (WiFi + WebServer + USB HID Device). */
+  static void initUSBMode();
 
   /** @brief Callback for processing USB keyboard reports. */
   static void onKeyboardReport(const uint8_t *data, size_t length);

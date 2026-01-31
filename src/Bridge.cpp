@@ -2,10 +2,15 @@
 #include "NVSUtils.h"
 #include "ModeManager.h"
 #include "WebManager.h"
+
+// Only include USB Host HID header when in USB Host mode
+#if ARDUINO_USB_MODE == 0
 #include <hid_usage_keyboard.h>
+#endif
 
 uint8_t Bridge::_currentSlot = 0;
 BLEManager Bridge::_bleManager;
+USBHIDManager Bridge::_usbHidManager;
 Preferences Bridge::_preferences;
 
 void Bridge::begin() {
@@ -19,36 +24,63 @@ void Bridge::begin() {
   _preferences.end();
 
   Serial.printf("[Config] Starting on device slot %d\n", _currentSlot + 1);
+  Serial.printf("[Config] Mode: %s\n", ModeManager::getModeName());
 
   // 2. Initialize based on mode
-  if (ModeManager::isOTGMode()) {
-    initOTGMode();
-  } else {
-    initWebMode();
+  switch (ModeManager::getMode()) {
+    case MODE_OTG:
+      initOTGMode();
+      break;
+    case MODE_WEB:
+      initWebMode();
+      break;
+    case MODE_USB:
+      initUSBMode();
+      break;
+    default:
+      Serial.println("[Bridge] ERROR: Unknown mode, defaulting to OTG");
+      ModeManager::setMode(MODE_OTG);
+      initOTGMode();
+      break;
   }
 }
 
 void Bridge::end() {
   Serial.println("[Bridge] Beginning cleanup sequence...");
 
-  // Order matters: cleanup in reverse order of initialization
-  // 1. Stop mode-specific components first
-  if (ModeManager::isOTGMode()) {
-    if (USBManager::isInitialized()) {
-      USBManager::end();
-    }
-  } else {
-    if (WebManager::isInitialized()) {
-      WebManager::end();
-    }
-  }
+  // Mode-specific cleanup
+  switch (ModeManager::getMode()) {
+    case MODE_OTG:
+      if (USBManager::isInitialized()) {
+        USBManager::end();
+      }
+      // BLE cleanup
+      NVSUtils::saveSlotBonds(_currentSlot);
+      if (_bleManager.isInitialized()) {
+        _bleManager.end();
+      }
+      break;
 
-  // 2. Save BLE bonds before stopping BLE
-  NVSUtils::saveSlotBonds(_currentSlot);
+    case MODE_WEB:
+      if (WebManager::isInitialized()) {
+        WebManager::end();
+      }
+      // BLE cleanup
+      NVSUtils::saveSlotBonds(_currentSlot);
+      if (_bleManager.isInitialized()) {
+        _bleManager.end();
+      }
+      break;
 
-  // 3. Stop BLE (shared component)
-  if (_bleManager.isInitialized()) {
-    _bleManager.end();
+    case MODE_USB:
+      if (WebManager::isInitialized()) {
+        WebManager::end();
+      }
+      if (_usbHidManager.isInitialized()) {
+        _usbHidManager.end();
+      }
+      // No BLE bonds to save in USB mode
+      break;
   }
 
   Serial.println("[Bridge] Cleanup sequence complete");
@@ -90,17 +122,51 @@ void Bridge::initWebMode() {
   Serial.println("[Mode] Web Mode initialization complete");
 }
 
+void Bridge::initUSBMode() {
+  Serial.println("[Mode] USB Mode - Initializing WiFi AP + WebServer + USB HID");
+
+#if ARDUINO_USB_MODE != 1
+  Serial.println("[Mode] ERROR: USB Device mode not enabled in this build!");
+  Serial.println("[Mode] This firmware was compiled with ARDUINO_USB_MODE=0 (Host mode)");
+  Serial.println("[Mode] USB mode requires firmware compiled with ARDUINO_USB_MODE=1");
+  Serial.println("[Mode] Falling back to WEB mode with BLE output");
+  ModeManager::setMode(MODE_WEB);
+  initWebMode();
+  return;
+#else
+  // 1. Init USB HID Device
+  const char *deviceNames[NUM_DEVICE_SLOTS] = {DEVICE_NAME_1, DEVICE_NAME_2,
+                                               DEVICE_NAME_3};
+  _usbHidManager.begin(deviceNames[_currentSlot]);
+
+  // 2. Init Web Manager with USB HID reference
+  WebManager::setUSBHIDManager(&_usbHidManager);
+  WebManager::begin();
+
+  Serial.println("[Mode] USB Mode initialization complete");
+#endif
+}
+
 void Bridge::loop() {
-  if (ModeManager::isWebMode()) {
+  // Handle Web mode or USB mode (both use WebManager for input)
+  if (ModeManager::isWebMode() || ModeManager::isUSBMode()) {
     WebManager::loop();
   }
 
-  // Track and report BLE connection state changes only
+  // Track and report connection state changes
   static bool lastConnected = false;
-  bool connected = _bleManager.isConnected();
+  bool connected = false;
+
+  if (ModeManager::isUSBMode()) {
+    connected = _usbHidManager.isConnected();
+  } else {
+    connected = _bleManager.isConnected();
+  }
+
   if (connected != lastConnected) {
     lastConnected = connected;
-    Serial.printf("[BLE] %s\n", connected ? "CONNECTED" : "Disconnected");
+    const char* outputType = ModeManager::isUSBMode() ? "USB" : "BLE";
+    Serial.printf("[%s] %s\n", outputType, connected ? "CONNECTED" : "Disconnected");
   }
 }
 
@@ -108,12 +174,14 @@ uint8_t Bridge::getCurrentSlot() { return _currentSlot; }
 
 BLEManager *Bridge::getBLEManager() { return &_bleManager; }
 
+USBHIDManager *Bridge::getUSBHIDManager() { return &_usbHidManager; }
+
 void Bridge::switchToSlot(uint8_t slot) {
   if (slot >= NUM_DEVICE_SLOTS)
     return;
 
   if (slot == _currentSlot) {
-    Serial.printf("[BLE] Already on slot %d\n", slot + 1);
+    Serial.printf("[Slot] Already on slot %d\n", slot + 1);
     if (LED_FEEDBACK_PIN >= 0) {
       for (int i = 0; i <= slot; i++) {
         digitalWrite(LED_FEEDBACK_PIN, HIGH);
@@ -125,7 +193,7 @@ void Bridge::switchToSlot(uint8_t slot) {
     return;
   }
 
-  Serial.printf("[BLE] Switching from slot %d to slot %d\n", _currentSlot + 1,
+  Serial.printf("[Slot] Switching from slot %d to slot %d\n", _currentSlot + 1,
                 slot + 1);
 
   // 1. Save new slot index before cleanup
@@ -157,16 +225,32 @@ void Bridge::switchMode() {
 
   // 1. Toggle mode in NVS
   ModeManager::toggleMode();
-  Serial.printf("[Mode] New mode will be: %s\n",
-                ModeManager::isOTGMode() ? "OTG" : "Web");
+  Serial.printf("[Mode] New mode will be: %s\n", ModeManager::getModeName());
 
-  // 2. Clean shutdown of all components
+  // 2. Warn if mode requires different firmware
+#if ARDUINO_USB_MODE == 0
+  if (ModeManager::isUSBMode()) {
+    Serial.println("[Mode] WARNING: USB mode requires firmware with ARDUINO_USB_MODE=1");
+    Serial.println("[Mode] Current firmware only supports OTG and WEB modes");
+    Serial.println("[Mode] USB mode will fall back to WEB mode on next boot");
+  }
+#else
+  if (ModeManager::isOTGMode()) {
+    Serial.println("[Mode] WARNING: OTG mode requires firmware with ARDUINO_USB_MODE=0");
+    Serial.println("[Mode] Current firmware only supports USB mode");
+  }
+#endif
+
+  // 3. Clean shutdown of all components
   end();
 
   Serial.println("[System] Restarting to apply new mode...");
   delay(500);
   ESP.restart();
 }
+
+// Only compile USB Host keyboard handling when in USB Host mode
+#if ARDUINO_USB_MODE == 0
 
 void Bridge::onKeyboardReport(const uint8_t *data, size_t length) {
   if (length < sizeof(hid_keyboard_input_report_boot_t))
@@ -212,3 +296,16 @@ bool Bridge::checkDeviceSwitchCombo(const uint8_t *keys, uint8_t modifiers) {
 
   return false;
 }
+
+#else
+// Stub implementations when USB Host mode not available
+
+void Bridge::onKeyboardReport(const uint8_t *data, size_t length) {
+  // Not used in USB Device mode
+}
+
+bool Bridge::checkDeviceSwitchCombo(const uint8_t *keys, uint8_t modifiers) {
+  return false;
+}
+
+#endif

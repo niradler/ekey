@@ -1,6 +1,11 @@
 /**
  * @file Config.h
- * @brief Global configuration constants for the USB-to-BLE Bridge.
+ * @brief Global configuration constants for EKey - Universal Keyboard Bridge.
+ *
+ * Modes:
+ * 1. USB -> BLE: Physical USB keyboard to Bluetooth output
+ * 2. Web -> BLE: Virtual web keyboard to Bluetooth output
+ * 3. Web -> USB: Virtual web keyboard to USB HID output (TODO)
  */
 
 #ifndef CONFIG_H
@@ -13,12 +18,12 @@
 // ============================================================================
 
 /** @brief Device names for each slot (will show up in Bluetooth settings) */
-#define DEVICE_NAME_1 "esp-otg1"
-#define DEVICE_NAME_2 "esp-otg2"
-#define DEVICE_NAME_3 "esp-otg3"
+#define DEVICE_NAME_1 "EKey-1"
+#define DEVICE_NAME_2 "EKey-2"
+#define DEVICE_NAME_3 "EKey-3"
 
 /** @brief Manufacturer name reported over BLE */
-#define DEVICE_MANUFACTURER "esp-otg"
+#define DEVICE_MANUFACTURER "EKey"
 
 /** @brief Battery level reported over BLE (0-100) */
 #define BATTERY_LEVEL 100
@@ -36,14 +41,16 @@
 #define LED_FEEDBACK_PIN 2
 
 /** @brief Operational modes */
-#define MODE_OTG 0
-#define MODE_WEB 1
+#define MODE_OTG 0  // USB Keyboard -> BLE
+#define MODE_WEB 1  // Web Virtual Keyboard -> BLE
+#define MODE_USB 2  // Web Virtual Keyboard -> USB HID (TODO)
+#define MODE_COUNT 3
 
 /** @brief GPIO pin for mode toggle button (BOOT button) */
 #define MODE_BUTTON_PIN 0
 
 /** @brief WiFi AP SSID */
-#define WIFI_AP_SSID "ESP32-BLE-Keyboard"
+#define WIFI_AP_SSID "EKey"
 
 /** @brief WiFi AP password (empty = open network) */
 #define WIFI_AP_PASSWORD ""

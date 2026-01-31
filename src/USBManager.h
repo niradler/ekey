@@ -1,17 +1,22 @@
 /**
  * @file USBManager.h
  * @brief Manages USB Host and HID Driver functionality with proper lifecycle.
+ * Only available when compiled with ARDUINO_USB_MODE=0 (USB Host mode).
  */
 
 #ifndef USB_MANAGER_H
 #define USB_MANAGER_H
 
-#include "hid_host.h"
-#include "usb/usb_host.h"
 #include <Arduino.h>
 
 /** @brief Callback type for keyboard reports. */
 typedef void (*KeyboardReportCallback)(const uint8_t *data, size_t length);
+
+// Only include USB Host headers when in USB Host mode
+#if ARDUINO_USB_MODE == 0
+#include "hid_host.h"
+#include "usb/usb_host.h"
+#endif
 
 class USBManager {
 public:
@@ -41,6 +46,8 @@ public:
 private:
   static KeyboardReportCallback _keyboardCb;
   static bool _initialized;
+
+#if ARDUINO_USB_MODE == 0
   static TaskHandle_t _usbLibTaskHandle;
   static TaskHandle_t _hidHostTaskHandle;
   static volatile bool _tasksShouldExit;
@@ -58,6 +65,7 @@ private:
   hid_host_interface_callback(hid_host_device_handle_t hid_device_handle,
                               const hid_host_interface_event_t event,
                               void *arg);
+#endif
 };
 
 #endif // USB_MANAGER_H

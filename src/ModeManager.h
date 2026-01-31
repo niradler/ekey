@@ -12,6 +12,8 @@ public:
   static void toggleMode();
   static bool isOTGMode();
   static bool isWebMode();
+  static bool isUSBMode();
+  static const char* getModeName();
 };
 
 #endif
